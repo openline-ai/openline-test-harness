@@ -10,7 +10,7 @@ import (
 func main() {
 	repoURL := "https://api.github.com/repos/openline-ai/openline-customer-os/contents/packages/server/customer-os-api/graph/schemas"
 
-	// Make a GET request to the GitHub API to get the repository contents.
+	// Make a GET request to the GitHub API to get the repository contents
 	resp, err := http.Get(repoURL)
 	if err != nil {
 		fmt.Println("Error making the request:", err)
