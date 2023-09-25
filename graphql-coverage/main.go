@@ -39,8 +39,8 @@ func main() {
 	// Filter and display files with the .graphqls extension
 	fmt.Println("Files with .graphqls extension:")
 	for _, file := range contents {
-		if file.Type == "file" && strings.HasSuffix(file.Name, ".graphqls") && file.Name == "tag.graphqls" {
-			fmt.Println("File:", file.Name)
+		if file.Type == "file" && strings.HasSuffix(file.Name, ".graphqls") && file.Name == "user.graphqls" {
+			fmt.Println("\nFile:", file.Name)
 			// Fetch the content of the GraphQL schema file
 			schemaURL := "https://raw.githubusercontent.com/openline-ai/openline-customer-os/main/packages/server/customer-os-api/graph/schemas/" + file.Name
 			schemaResp, err := http.Get(schemaURL)
@@ -58,12 +58,28 @@ func main() {
 			}
 
 			// Use regular expressions to find and display mutation names
-			re := regexp.MustCompile(`extend type Mutation {([\s\S]*?)}`)
-			match := re.FindStringSubmatch(string(schemaContent))
-			if len(match) >= 2 {
-				mutationBlock := match[1]
-				re = regexp.MustCompile(`(\w+)\(`)
-				matches := re.FindAllStringSubmatch(mutationBlock, -1)
+			queries := regexp.MustCompile(`extend type Query {([\s\S]*?)}`)
+			matchQueries := queries.FindStringSubmatch(string(schemaContent))
+			if len(matchQueries) >= 2 {
+				queryBlock := matchQueries[1]
+				queries = regexp.MustCompile(`\b(\w+)\(`) // Updated regex pattern
+				matches := queries.FindAllStringSubmatch(queryBlock, -1)
+				if matches != nil {
+					var queryNames []string
+					for _, match := range matches {
+						mutationName := match[1]
+						queryNames = append(queryNames, mutationName)
+					}
+					fmt.Println("Query Names:", strings.Join(queryNames, ", "))
+				}
+			}
+
+			mutations := regexp.MustCompile(`extend type Mutation {([\s\S]*?)}`)
+			matchMutations := mutations.FindStringSubmatch(string(schemaContent))
+			if len(matchMutations) >= 2 {
+				mutationBlock := matchMutations[1]
+				mutations = regexp.MustCompile(`\b(\w+)\(`) // Updated regex pattern
+				matches := mutations.FindAllStringSubmatch(mutationBlock, -1)
 				if matches != nil {
 					var mutationNames []string
 					for _, match := range matches {
