@@ -3,7 +3,9 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
+	"regexp"
 	"strings"
 )
 
@@ -37,8 +39,40 @@ func main() {
 	// Filter and display files with the .graphqls extension
 	fmt.Println("Files with .graphqls extension:")
 	for _, file := range contents {
-		if file.Type == "file" && strings.HasSuffix(file.Name, ".graphqls") {
-			fmt.Println(file.Name)
+		if file.Type == "file" && strings.HasSuffix(file.Name, ".graphqls") && file.Name == "tag.graphqls" {
+			fmt.Println("File:", file.Name)
+			// Fetch the content of the GraphQL schema file
+			schemaURL := "https://raw.githubusercontent.com/openline-ai/openline-customer-os/main/packages/server/customer-os-api/graph/schemas/" + file.Name
+			schemaResp, err := http.Get(schemaURL)
+			if err != nil {
+				fmt.Println("Error fetching schema content:", err)
+				continue
+			}
+			defer schemaResp.Body.Close()
+
+			// Read and parse the content of the schema file
+			schemaContent, err := ioutil.ReadAll(schemaResp.Body)
+			if err != nil {
+				fmt.Println("Error reading schema content:", err)
+				continue
+			}
+
+			// Use regular expressions to find and display mutation names
+			re := regexp.MustCompile(`extend type Mutation {([\s\S]*?)}`)
+			match := re.FindStringSubmatch(string(schemaContent))
+			if len(match) >= 2 {
+				mutationBlock := match[1]
+				re = regexp.MustCompile(`(\w+)\(`)
+				matches := re.FindAllStringSubmatch(mutationBlock, -1)
+				if matches != nil {
+					var mutationNames []string
+					for _, match := range matches {
+						mutationName := match[1]
+						mutationNames = append(mutationNames, mutationName)
+					}
+					fmt.Println("Mutation Names:", strings.Join(mutationNames, ", "))
+				}
+			}
 		}
 	}
 }
