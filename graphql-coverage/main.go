@@ -12,50 +12,57 @@ import (
 func main() {
 	baseUrl := "https://api.github.com/repos/openline-ai/openline-customer-os/contents/packages/server/customer-os-api/graph/"
 	//queriesMutations := getQueriesMutations(baseUrl)
-	getTestsForQueriesMutations(baseUrl)
+	testsForQueriesMutations := getTestsForQueriesMutations(baseUrl)
 	//computeCoverage()
 	//fmt.Println(queriesMutations)
+	fmt.Println(testsForQueriesMutations)
 }
 
-func getTestsForQueriesMutations(baseUrl string) {
+func getTestsForQueriesMutations(baseUrl string) []testsForQueryMutation {
 	resolversIntegrationTestsSource := baseUrl + "resolver"
-
 	resp, err := http.Get(resolversIntegrationTestsSource)
 	if err != nil {
 		fmt.Println("Error:", err)
-		return
+		return nil
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		fmt.Println("HTTP Status:", resp.Status)
-		return
+		return nil
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		fmt.Println("Error reading response body:", err)
-		return
+		return nil
 	}
 
 	var contents []GitHubContent
 	if err := json.Unmarshal(body, &contents); err != nil {
 		fmt.Println("Error parsing JSON:", err)
-		return
+		return nil
 	}
 
 	var fileNames []string
+	var testsForQueryMutations []testsForQueryMutation
 
 	for _, content := range contents {
 		if isFile(content) && strings.HasSuffix(content.Name, ".resolvers_it_test.go") {
 			fileNames = append(fileNames, content.Name)
+			testsForQueryMutation := testsForQueryMutation{
+				fileName: strings.TrimSuffix(content.Name, ".resolvers_it_test.go"),
+			}
+			testsForQueryMutations = append(testsForQueryMutations, testsForQueryMutation)
 		}
 	}
+	//
+	//fmt.Println("File Names:")
+	//for _, fileName := range fileNames {
+	//	fmt.Println(fileName)
+	//}
 
-	fmt.Println("File Names:")
-	for _, fileName := range fileNames {
-		fmt.Println(fileName)
-	}
+	return testsForQueryMutations
 }
 
 func getQueriesMutations(baseUrl string) []queryMutation {
@@ -64,11 +71,13 @@ func getQueriesMutations(baseUrl string) []queryMutation {
 	resp, err := http.Get(schemasSource)
 	if err != nil {
 		fmt.Println("Error making the request:", err)
+		return nil
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		fmt.Printf("GitHub API returned a non-OK status code: %d\n", resp.StatusCode)
+		return nil
 	}
 
 	var contents []struct {
@@ -77,6 +86,7 @@ func getQueriesMutations(baseUrl string) []queryMutation {
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&contents); err != nil {
 		fmt.Println("Error decoding JSON response:", err)
+		return nil
 	}
 
 	var queryMutations []queryMutation
@@ -166,4 +176,10 @@ func (m *queryMutation) updateQueries(queries []string) {
 
 func (m *queryMutation) updateMutations(mutations []string) {
 	m.mutations = mutations
+}
+
+type testsForQueryMutation struct {
+	fileName         string
+	testsForQueries  []string
+	testsForMutation []string
 }
