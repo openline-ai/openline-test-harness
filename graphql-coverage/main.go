@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"regexp"
 	"strings"
@@ -12,7 +12,6 @@ import (
 func main() {
 	repoURL := "https://api.github.com/repos/openline-ai/openline-customer-os/contents/packages/server/customer-os-api/graph/schemas"
 
-	// Make a GET request to the GitHub API to get the repository contents
 	resp, err := http.Get(repoURL)
 	if err != nil {
 		fmt.Println("Error making the request:", err)
@@ -20,13 +19,11 @@ func main() {
 	}
 	defer resp.Body.Close()
 
-	// Check the response status code.
 	if resp.StatusCode != http.StatusOK {
 		fmt.Printf("GitHub API returned a non-OK status code: %d\n", resp.StatusCode)
 		return
 	}
 
-	// Parse the JSON response.
 	var contents []struct {
 		Name string `json:"name"`
 		Type string `json:"type"`
@@ -36,12 +33,10 @@ func main() {
 		return
 	}
 
-	// Filter and display files with the .graphqls extension
 	fmt.Println("Files with .graphqls extension:")
 	for _, file := range contents {
-		if file.Type == "file" && strings.HasSuffix(file.Name, ".graphqls") { //} && file.Name == "user.graphqls" {
+		if file.Type == "file" && strings.HasSuffix(file.Name, ".graphqls") {
 			fmt.Println("\nFile:", file.Name)
-			// Fetch the content of the GraphQL schema file
 			schemaURL := "https://raw.githubusercontent.com/openline-ai/openline-customer-os/main/packages/server/customer-os-api/graph/schemas/" + file.Name
 			schemaResp, err := http.Get(schemaURL)
 			if err != nil {
@@ -50,8 +45,7 @@ func main() {
 			}
 			defer schemaResp.Body.Close()
 
-			// Read and parse the content of the schema file
-			schemaContent, err := ioutil.ReadAll(schemaResp.Body)
+			schemaContent, err := io.ReadAll(schemaResp.Body)
 			if err != nil {
 				fmt.Println("Error reading schema content:", err)
 				continue
