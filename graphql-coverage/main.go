@@ -39,7 +39,7 @@ func main() {
 	// Filter and display files with the .graphqls extension
 	fmt.Println("Files with .graphqls extension:")
 	for _, file := range contents {
-		if file.Type == "file" && strings.HasSuffix(file.Name, ".graphqls") && file.Name == "user.graphqls" {
+		if file.Type == "file" && strings.HasSuffix(file.Name, ".graphqls") { //} && file.Name == "user.graphqls" {
 			fmt.Println("\nFile:", file.Name)
 			// Fetch the content of the GraphQL schema file
 			schemaURL := "https://raw.githubusercontent.com/openline-ai/openline-customer-os/main/packages/server/customer-os-api/graph/schemas/" + file.Name
@@ -57,13 +57,19 @@ func main() {
 				continue
 			}
 
+			queryMutationPattern := `\b(\w+)\(`
+			annotationPattern := `@[^@\s]*`
+			re := regexp.MustCompile(annotationPattern)
+
 			// Use regular expressions to find and display mutation names
 			queries := regexp.MustCompile(`extend type Query {([\s\S]*?)}`)
 			matchQueries := queries.FindStringSubmatch(string(schemaContent))
 			if len(matchQueries) >= 2 {
 				queryBlock := matchQueries[1]
-				queries = regexp.MustCompile(`\b(\w+)\(`) // Updated regex pattern
-				matches := queries.FindAllStringSubmatch(queryBlock, -1)
+				sanitizedQueryBlock := re.ReplaceAllString(queryBlock, "")
+
+				queries = regexp.MustCompile(queryMutationPattern) // Updated regex pattern
+				matches := queries.FindAllStringSubmatch(sanitizedQueryBlock, -1)
 				if matches != nil {
 					var queryNames []string
 					for _, match := range matches {
@@ -78,8 +84,10 @@ func main() {
 			matchMutations := mutations.FindStringSubmatch(string(schemaContent))
 			if len(matchMutations) >= 2 {
 				mutationBlock := matchMutations[1]
-				mutations = regexp.MustCompile(`\b(\w+)\(`) // Updated regex pattern
-				matches := mutations.FindAllStringSubmatch(mutationBlock, -1)
+				sanitizedMutationBlock := re.ReplaceAllString(mutationBlock, "")
+
+				mutations = regexp.MustCompile(queryMutationPattern) // Updated regex pattern
+				matches := mutations.FindAllStringSubmatch(sanitizedMutationBlock, -1)
 				if matches != nil {
 					var mutationNames []string
 					for _, match := range matches {
