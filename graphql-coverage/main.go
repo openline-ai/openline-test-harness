@@ -19,7 +19,7 @@ func main() {
 }
 
 func computeCoverage(queryMutations []queryMutation, testsForQueryMutations []testsForQueryMutation) {
-	fmt.Println("Queries and mutations / tests count")
+	fmt.Println("\nQueries and mutations / tests count")
 	queryMutationsCount := 0
 	for _, queryMutation := range queryMutations {
 		queryMutationsCount = queryMutationsCount + len(queryMutation.queries) + len(queryMutation.mutations)
@@ -39,7 +39,7 @@ func computeCoverage(queryMutations []queryMutation, testsForQueryMutations []te
 		testQueryMutationsCount = testQueryMutationsCount + len(testQueryMutation.testsForQueries) + len(testQueryMutation.testsForMutation)
 	}
 
-	fmt.Println("Total of queries and mutations / tests count: ", queryMutationsCount, "/", testQueryMutationsCount)
+	fmt.Println("\nTotal of queries and mutations / Total tests count: ", queryMutationsCount, "/", testQueryMutationsCount, "\n")
 }
 
 func getTestsForQueriesMutations(baseUrl string) []testsForQueryMutation {
