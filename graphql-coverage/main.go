@@ -57,46 +57,40 @@ func main() {
 				continue
 			}
 
-			queryMutationPattern := `\b(\w+)\(`
-			annotationPattern := `@[^@\s]*`
-			re := regexp.MustCompile(annotationPattern)
-
-			// Use regular expressions to find and display mutation names
-			queries := regexp.MustCompile(`extend type Query {([\s\S]*?)}`)
-			matchQueries := queries.FindStringSubmatch(string(schemaContent))
-			if len(matchQueries) >= 2 {
-				queryBlock := matchQueries[1]
-				sanitizedQueryBlock := re.ReplaceAllString(queryBlock, "")
-
-				queries = regexp.MustCompile(queryMutationPattern) // Updated regex pattern
-				matches := queries.FindAllStringSubmatch(sanitizedQueryBlock, -1)
-				if matches != nil {
-					var queryNames []string
-					for _, match := range matches {
-						mutationName := match[1]
-						queryNames = append(queryNames, mutationName)
-					}
-					fmt.Println("Query Names:", strings.Join(queryNames, ", "))
-				}
+			queriesSnippet := regexp.MustCompile(`extend type Query {([\s\S]*?)}`)
+			queries := funcName(queriesSnippet, schemaContent)
+			if len(queries) > 0 {
+				fmt.Println("Query Names:", strings.Join(queries, ", "))
 			}
 
-			mutations := regexp.MustCompile(`extend type Mutation {([\s\S]*?)}`)
-			matchMutations := mutations.FindStringSubmatch(string(schemaContent))
-			if len(matchMutations) >= 2 {
-				mutationBlock := matchMutations[1]
-				sanitizedMutationBlock := re.ReplaceAllString(mutationBlock, "")
-
-				mutations = regexp.MustCompile(queryMutationPattern) // Updated regex pattern
-				matches := mutations.FindAllStringSubmatch(sanitizedMutationBlock, -1)
-				if matches != nil {
-					var mutationNames []string
-					for _, match := range matches {
-						mutationName := match[1]
-						mutationNames = append(mutationNames, mutationName)
-					}
-					fmt.Println("Mutation Names:", strings.Join(mutationNames, ", "))
-				}
+			mutationsSnippet := regexp.MustCompile(`extend type Mutation {([\s\S]*?)}`)
+			mutations := funcName(mutationsSnippet, schemaContent)
+			if len(mutations) > 0 {
+				fmt.Println("Mutation Names:", strings.Join(mutations, ", "))
 			}
 		}
 	}
+}
+
+func funcName(queriesMutations *regexp.Regexp, schemaContent []byte) []string {
+	queryMutationPattern := `\b(\w+)\(`
+	annotationPattern := `@[^@\s]*`
+	re := regexp.MustCompile(annotationPattern)
+	matchQueries := queriesMutations.FindStringSubmatch(string(schemaContent))
+	var queriesMutationsNames []string
+	if len(matchQueries) >= 2 {
+		queryBlock := matchQueries[1]
+		sanitizedQueryBlock := re.ReplaceAllString(queryBlock, "")
+
+		queriesMutations = regexp.MustCompile(queryMutationPattern)
+		matches := queriesMutations.FindAllStringSubmatch(sanitizedQueryBlock, -1)
+		if matches != nil {
+			for _, match := range matches {
+				queriesMutationName := match[1]
+				queriesMutationsNames = append(queriesMutationsNames, queriesMutationName)
+			}
+
+		}
+	}
+	return queriesMutationsNames
 }
