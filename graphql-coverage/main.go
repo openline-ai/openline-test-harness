@@ -14,14 +14,24 @@ func main() {
 	queriesMutations := getQueriesMutations(baseUrl)
 	testsForQueriesMutations := getTestsForQueriesMutations(baseUrl)
 	computeCoverage(queriesMutations, testsForQueriesMutations)
-	//fmt.Println(queriesMutations)
-	//fmt.Println(testsForQueriesMutations)
+	//fmt.Println("queriesMutations: ", queriesMutations)
+	//fmt.Println("testsForQueriesMutations: ", testsForQueriesMutations)
 }
 
 func computeCoverage(queryMutations []queryMutation, testsForQueryMutations []testsForQueryMutation) {
+	fmt.Println("Queries and mutations / tests count")
 	queryMutationsCount := 0
 	for _, queryMutation := range queryMutations {
 		queryMutationsCount = queryMutationsCount + len(queryMutation.queries) + len(queryMutation.mutations)
+		for _, testQueryMutation := range testsForQueryMutations {
+			if testQueryMutation.fileName == queryMutation.fileName {
+				fmt.Println(queryMutation.fileName,
+					" - ",
+					len(queryMutation.queries)+len(queryMutation.mutations),
+					"/",
+					len(testQueryMutation.testsForQueries)+len(testQueryMutation.testsForMutation))
+			}
+		}
 	}
 
 	testQueryMutationsCount := 0
@@ -29,7 +39,7 @@ func computeCoverage(queryMutations []queryMutation, testsForQueryMutations []te
 		testQueryMutationsCount = testQueryMutationsCount + len(testQueryMutation.testsForQueries) + len(testQueryMutation.testsForMutation)
 	}
 
-	fmt.Println(queryMutationsCount, " - ", testQueryMutationsCount)
+	fmt.Println("Total of queries and mutations / tests count: ", queryMutationsCount, "/", testQueryMutationsCount)
 }
 
 func getTestsForQueriesMutations(baseUrl string) []testsForQueryMutation {
@@ -58,14 +68,11 @@ func getTestsForQueriesMutations(baseUrl string) []testsForQueryMutation {
 		return nil
 	}
 
-	//var fileNames []string
 	var testsForQueryMutations []testsForQueryMutation
 
 	for _, content := range contents {
-		if isFile(content) && strings.HasSuffix(content.Name, ".resolvers_it_test.go") { // && content.Name == "tag.resolvers_it_test.go" {
-			//fileNames = append(fileNames, content.Name)
+		if isFile(content) && strings.HasSuffix(content.Name, ".resolvers_it_test.go") { //&& (content.Name == "attachment.resolvers_it_test.go" || content.Name == "contact.resolvers_it_test.go") {
 			resolversIntegrationTestsFile := baseUrl + "resolver/" + content.Name
-			// Send a GET request to the GitHub URL
 			client := &http.Client{}
 			req, _ := http.NewRequest("GET", resolversIntegrationTestsFile, nil)
 			req.Header.Set("Accept", "application/vnd.github.v3.raw")
@@ -145,10 +152,10 @@ func getQueriesMutations(baseUrl string) []queryMutation {
 
 	var queryMutations []queryMutation
 
-	fmt.Println("Files with .graphqls extension:")
+	//fmt.Println("Files with .graphqls extension:")
 	for _, file := range contents {
-		if file.Type == "file" && strings.HasSuffix(file.Name, ".graphqls") { // && file.Name == "meeting.graphqls" {
-			fmt.Println("\nFile:", file.Name)
+		if file.Type == "file" && strings.HasSuffix(file.Name, ".graphqls") { //&& (file.Name == "attachment.graphqls" || file.Name == "contact.graphqls") {
+			//fmt.Println("\nFile:", file.Name)
 			queryMutation := queryMutation{
 				fileName: strings.TrimSuffix(file.Name, ".graphqls"),
 			}
@@ -169,7 +176,7 @@ func getQueriesMutations(baseUrl string) []queryMutation {
 			queriesSnippet := regexp.MustCompile(`extend type Query {([\s\S]*?)}`)
 			queries := getQueryMutation(queriesSnippet, schemaContent)
 			if len(queries) > 0 {
-				fmt.Println("Query Names:", strings.Join(queries, ", "))
+				//fmt.Println("Query Names:", strings.Join(queries, ", "))
 				mutableQueryMutation := &queryMutation
 				mutableQueryMutation.updateQueries(queries)
 			}
@@ -177,7 +184,7 @@ func getQueriesMutations(baseUrl string) []queryMutation {
 			mutationsSnippet := regexp.MustCompile(`extend type Mutation {([\s\S]*?)}`)
 			mutations := getQueryMutation(mutationsSnippet, schemaContent)
 			if len(mutations) > 0 {
-				fmt.Println("Mutation Names:", strings.Join(mutations, ", "))
+				//fmt.Println("Mutation Names:", strings.Join(mutations, ", "))
 				mutableQueryMutation := &queryMutation
 				mutableQueryMutation.updateMutations(mutations)
 			}
