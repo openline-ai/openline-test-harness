@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"regexp"
 	"strings"
@@ -12,16 +11,15 @@ import (
 
 func main() {
 	baseUrl := "https://api.github.com/repos/openline-ai/openline-customer-os/contents/packages/server/customer-os-api/graph/"
-	getQueriesMutations(baseUrl)
+	//queriesMutations := getQueriesMutations(baseUrl)
 	getTestsForQueriesMutations(baseUrl)
 	//computeCoverage()
+	//fmt.Println(queriesMutations)
 }
 
 func getTestsForQueriesMutations(baseUrl string) {
-	// Define the GitHub API URL for the repository's contents
 	resolversIntegrationTestsSource := baseUrl + "resolver"
 
-	// Send a GET request to the GitHub API
 	resp, err := http.Get(resolversIntegrationTestsSource)
 	if err != nil {
 		fmt.Println("Error:", err)
@@ -29,57 +27,48 @@ func getTestsForQueriesMutations(baseUrl string) {
 	}
 	defer resp.Body.Close()
 
-	// Check the response status code
 	if resp.StatusCode != http.StatusOK {
 		fmt.Println("HTTP Status:", resp.Status)
 		return
 	}
 
-	// Read and parse the response JSON
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		fmt.Println("Error reading response body:", err)
 		return
 	}
 
-	// Unmarshal the JSON into a slice of GitHubContent structs
 	var contents []GitHubContent
 	if err := json.Unmarshal(body, &contents); err != nil {
 		fmt.Println("Error parsing JSON:", err)
 		return
 	}
 
-	// Initialize a slice to store file names
 	var fileNames []string
 
-	// Iterate through the contents and filter files ending with ".resolvers_it_test.go"
 	for _, content := range contents {
 		if isFile(content) && strings.HasSuffix(content.Name, ".resolvers_it_test.go") {
-			//fmt.Println(content.Name)
 			fileNames = append(fileNames, content.Name)
 		}
 	}
 
-	// Print the list of file names
 	fmt.Println("File Names:")
 	for _, fileName := range fileNames {
 		fmt.Println(fileName)
 	}
 }
 
-func getQueriesMutations(baseUrl string) {
+func getQueriesMutations(baseUrl string) []queryMutation {
 	schemasSource := baseUrl + "schemas"
 
 	resp, err := http.Get(schemasSource)
 	if err != nil {
 		fmt.Println("Error making the request:", err)
-		return
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		fmt.Printf("GitHub API returned a non-OK status code: %d\n", resp.StatusCode)
-		return
 	}
 
 	var contents []struct {
@@ -88,13 +77,17 @@ func getQueriesMutations(baseUrl string) {
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&contents); err != nil {
 		fmt.Println("Error decoding JSON response:", err)
-		return
 	}
+
+	var queryMutations []queryMutation
 
 	fmt.Println("Files with .graphqls extension:")
 	for _, file := range contents {
-		if file.Type == "file" && strings.HasSuffix(file.Name, ".graphqls") {
+		if file.Type == "file" && strings.HasSuffix(file.Name, ".graphqls") { // && file.Name == "meeting.graphqls" {
 			fmt.Println("\nFile:", file.Name)
+			queryMutation := queryMutation{
+				fileName: strings.TrimSuffix(file.Name, ".graphqls"),
+			}
 			schemaURL := "https://raw.githubusercontent.com/openline-ai/openline-customer-os/main/packages/server/customer-os-api/graph/schemas/" + file.Name
 			schemaResp, err := http.Get(schemaURL)
 			if err != nil {
@@ -110,21 +103,27 @@ func getQueriesMutations(baseUrl string) {
 			}
 
 			queriesSnippet := regexp.MustCompile(`extend type Query {([\s\S]*?)}`)
-			queries := funcName(queriesSnippet, schemaContent)
+			queries := getQueryMutation(queriesSnippet, schemaContent)
 			if len(queries) > 0 {
 				fmt.Println("Query Names:", strings.Join(queries, ", "))
+				mutableQueryMutation := &queryMutation
+				mutableQueryMutation.updateQueries(queries)
 			}
 
 			mutationsSnippet := regexp.MustCompile(`extend type Mutation {([\s\S]*?)}`)
-			mutations := funcName(mutationsSnippet, schemaContent)
+			mutations := getQueryMutation(mutationsSnippet, schemaContent)
 			if len(mutations) > 0 {
 				fmt.Println("Mutation Names:", strings.Join(mutations, ", "))
+				mutableQueryMutation := &queryMutation
+				mutableQueryMutation.updateMutations(mutations)
 			}
+			queryMutations = append(queryMutations, queryMutation)
 		}
 	}
+	return queryMutations
 }
 
-func funcName(queriesMutations *regexp.Regexp, schemaContent []byte) []string {
+func getQueryMutation(queriesMutations *regexp.Regexp, schemaContent []byte) []string {
 	queryMutationPattern := `\b(\w+)\(`
 	annotationPattern := `@[^@\s]*`
 	re := regexp.MustCompile(annotationPattern)
@@ -151,8 +150,20 @@ func isFile(content GitHubContent) bool {
 }
 
 type GitHubContent struct {
-	Name    string      `json:"name"`
-	Path    string      `json:"path"`
-	Type    interface{} `json:"type"`
-	HTMLURL string      `json:"html_url"`
+	Name string      `json:"name"`
+	Type interface{} `json:"type"`
+}
+
+type queryMutation struct {
+	fileName  string
+	queries   []string
+	mutations []string
+}
+
+func (m *queryMutation) updateQueries(queries []string) {
+	m.queries = queries
+}
+
+func (m *queryMutation) updateMutations(mutations []string) {
+	m.mutations = mutations
 }
