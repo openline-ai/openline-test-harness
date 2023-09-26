@@ -11,11 +11,15 @@ import (
 
 func main() {
 	baseUrl := "https://api.github.com/repos/openline-ai/openline-customer-os/contents/packages/server/customer-os-api/graph/"
-	//queriesMutations := getQueriesMutations(baseUrl)
+	queriesMutations := getQueriesMutations(baseUrl)
 	testsForQueriesMutations := getTestsForQueriesMutations(baseUrl)
-	//computeCoverage()
-	//fmt.Println(queriesMutations)
+	computeCoverage(queriesMutations, testsForQueriesMutations)
+	fmt.Println(queriesMutations)
 	fmt.Println(testsForQueriesMutations)
+}
+
+func computeCoverage(mutations []queryMutation, mutations2 []testsForQueryMutation) {
+
 }
 
 func getTestsForQueriesMutations(baseUrl string) []testsForQueryMutation {
@@ -44,25 +48,65 @@ func getTestsForQueriesMutations(baseUrl string) []testsForQueryMutation {
 		return nil
 	}
 
-	var fileNames []string
+	//var fileNames []string
 	var testsForQueryMutations []testsForQueryMutation
 
 	for _, content := range contents {
-		if isFile(content) && strings.HasSuffix(content.Name, ".resolvers_it_test.go") {
-			fileNames = append(fileNames, content.Name)
+		if isFile(content) && strings.HasSuffix(content.Name, ".resolvers_it_test.go") { // && content.Name == "tag.resolvers_it_test.go" {
+			//fileNames = append(fileNames, content.Name)
+			resolversIntegrationTestsFile := baseUrl + "resolver/" + content.Name
+			// Send a GET request to the GitHub URL
+			client := &http.Client{}
+			req, _ := http.NewRequest("GET", resolversIntegrationTestsFile, nil)
+			req.Header.Set("Accept", "application/vnd.github.v3.raw")
+
+			resp, _ := client.Do(req)
+
+			if err != nil {
+				fmt.Println("Error:", err)
+				return nil
+			}
+			defer resp.Body.Close()
+
+			if resp.StatusCode != http.StatusOK {
+				fmt.Println("HTTP Status:", resp.Status)
+				return nil
+			}
+
+			fileContent, err := io.ReadAll(resp.Body)
+			if err != nil {
+				fmt.Println("Error reading file content:", err)
+				return nil
+			}
+
+			testMutationsPattern := `func\s+TestMutationResolver_[A-Za-z0-9_]+\s*\(`
+			testMutations := getTestQueryMutations(testMutationsPattern, fileContent)
+			testQueriesPattern := `func\s+TestQueryResolver_[A-Za-z0-9_]+\s*\(`
+			testQueries := getTestQueryMutations(testQueriesPattern, fileContent)
+
 			testsForQueryMutation := testsForQueryMutation{
-				fileName: strings.TrimSuffix(content.Name, ".resolvers_it_test.go"),
+				fileName:         strings.TrimSuffix(content.Name, ".resolvers_it_test.go"),
+				testsForQueries:  testQueries,
+				testsForMutation: testMutations,
 			}
 			testsForQueryMutations = append(testsForQueryMutations, testsForQueryMutation)
 		}
 	}
-	//
-	//fmt.Println("File Names:")
-	//for _, fileName := range fileNames {
-	//	fmt.Println(fileName)
-	//}
 
 	return testsForQueryMutations
+}
+
+func getTestQueryMutations(mutationsPattern string, fileContent []byte) []string {
+	re := regexp.MustCompile(mutationsPattern)
+
+	matches := re.FindAllString(string(fileContent), -1)
+
+	var testMutations []string
+	for _, match := range matches {
+		testName := match[len("func ") : len(match)-1]
+		testMutations = append(testMutations, testName)
+	}
+	return testMutations
 }
 
 func getQueriesMutations(baseUrl string) []queryMutation {
