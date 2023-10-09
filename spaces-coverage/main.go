@@ -75,21 +75,26 @@ func scanForFiles(dirPath string, ignore []string) ([]string, []string) {
 }
 
 func cloneRepo(repoToClone string) string {
+	_, err := os.Stat(repoToClone)
+	if err == nil {
+		return repoToClone
+	} else if !os.IsNotExist(err) {
+		fmt.Println("Error checking repository existence:", err)
+		os.Exit(1)
+	}
+
 	repo, err := git.PlainClone(repoToClone, false, &git.CloneOptions{
 		URL:      "https://github.com/openline-ai/openline-customer-os.git",
 		Progress: os.Stdout,
 	})
-	if err.Error() == "repository already exists" {
-		return repoToClone
-	}
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("Error cloning repository:", err)
 		os.Exit(1)
 	}
 
 	worktree, err := repo.Worktree()
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("Error getting worktree:", err)
 		os.Exit(1)
 	}
 	return worktree.Filesystem.Root()
