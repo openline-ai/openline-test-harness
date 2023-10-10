@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/go-git/go-git/v5"
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -15,14 +16,35 @@ func main() {
 	fmt.Println("Cloned repository:", repoPath)
 	clonedRepo := "openline-customer-os"
 
+	clonedRepoPath := getClonedRepoPath(clonedRepo)
+	graphQlFiles, graphQlTestFiles := scanForFiles(clonedRepoPath, []string{".git", "/.git", "/.git/", ".gitignore", ".DS_Store", ".idea", "/.idea/", "/.idea"})
+
+	computeTestCoverage(graphQlTestFiles, graphQlFiles)
+}
+
+func computeTestCoverage(graphQlTestFiles []string, graphQlFiles []string) {
+	testCoverage := (float64(len(graphQlTestFiles) * 100)) / float64(len(graphQlFiles))
+	fmt.Printf("Spaces test coverage: %.2f%%", testCoverage)
+
+	filePath := "coverage.txt"
+	stringTestCoverage := fmt.Sprintf("%.2f", testCoverage)
+
+	errWritingToFile := ioutil.WriteFile(filePath, []byte(stringTestCoverage), 0644)
+	if errWritingToFile != nil {
+		fmt.Println("Error writing to file:", errWritingToFile)
+		return
+	}
+
+	fmt.Println("\nCoverage written to:", filePath)
+}
+
+func getClonedRepoPath(clonedRepo string) string {
 	currentDir, err := os.Getwd()
 	if err != nil {
 		log.Fatal(err)
 	}
 	clonedRepoPath := filepath.Join(currentDir, clonedRepo)
-	graphQlFiles, graphQlTestFiles := scanForFiles(clonedRepoPath, []string{".git", "/.git", "/.git/", ".gitignore", ".DS_Store", ".idea", "/.idea/", "/.idea"})
-
-	fmt.Printf("Spaces test coverage: %.2f%%", (float64(len(graphQlTestFiles)*100))/float64(len(graphQlFiles)))
+	return clonedRepoPath
 }
 
 func scanForFiles(dirPath string, ignore []string) ([]string, []string) {
